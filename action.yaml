@@ -74,8 +74,8 @@ runs:
             conclusion: conclusion,
             status: 'completed',
             output: {
-              title: "${{ matrix.path }} Terraform (${{ matrix.workspace }})",
-              summary: `⚙️ Initialization ${{ steps.init.outcome }}\t\t\t🤖 Validation ${{ steps.validate.outcome }}`,
+              title: "Terraform (${{ inputs.workspace }}) - ${{ inputs.directory }}",
+              summary: `The following changes will be made on apply to ${{ inputs.workspace }}`,
               text: `\`\`\`${{ steps.plan_report.outputs.stdout }}\`\`\``
             }
           });
