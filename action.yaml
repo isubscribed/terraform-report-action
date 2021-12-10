@@ -1,0 +1,81 @@
+name: Terraform Report
+description: Create a check that reports the terraform changes for a given workspace and directory
+inputs:
+  workspace:
+    description: Which terraform workspace
+    required: false
+    default: default
+  token:
+    description: Github Token for the check
+    required: true
+  check-name:
+    description: Github Token for the check
+    required: false
+    default: Terraform Report
+  directory:
+    description: Where are the terraform resources housed
+    required: false
+    default: terraform
+  terraform-version:
+    description: Which version of Terraform to use
+    required: false
+    default: 1.0.4
+runs:
+  using: composite
+  steps:
+    - name: Terraform Setup
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_version: ~1.0.4
+    - name: Initialize Terraform
+      shell: bash
+      id: init
+      working-directory: ${{ inputs.directory }}
+      run: terraform init
+    - name: Select Terraform Workspace
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      run: terraform workspace select ${{ inputs.workspace }}
+    - name: Terraform Validate
+      shell: bash
+      id: validate
+      working-directory: ${{ inputs.directory }}
+      run: terraform validate -no-color
+    - name: Terraform plan
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      run: terraform plan -out plan.out
+    # Doing this to hide the status refresh testing
+    - name: Generate TF Changes Report
+      shell: bash
+      id: plan_report
+      working-directory: ${{ inputs.directory }}
+      run: terraform show -no-color plan.out
+    - name: Create Check
+      uses: actions/github-script@v5.0.0
+      with:
+        github-token: ${{ inputs.token }}
+        script: |
+          let sha = context.sha;
+          if (context.payload.pull_request) {
+            sha = context.payload.pull_request.head.sha;
+          }
+          const report = `${{ steps.plan_report.outputs.stdout }}`;
+          const conclusion = 'success';
+          if (report.indexOf('No changes. Your infrastructure matches the configuration') !== -1) {
+            console.log('here');
+            conclusion = 'skipped';
+          }
+          await github.rest.checks.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            name: "${{ inputs.check-name }}",
+            head_sha: sha,
+            conclusion: conclusion,
+            status: 'completed',
+            output: {
+              title: "${{ matrix.path }} Terraform (${{ matrix.workspace }})",
+              summary: `⚙️ Initialization ${{ steps.init.outcome }}\t\t\t🤖 Validation ${{ steps.validate.outcome }}`,
+              text: `\`\`\`${{ steps.plan_report.outputs.stdout }}\`\`\``
+            }
+          });
