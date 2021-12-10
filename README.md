@@ -41,7 +41,7 @@ report:
           aws-secret-access-key: ${{ AWS STUFF }}
           aws-region: ${{ REGION }}
       - name: Report Terraform Changes
-        uses: ./.github/actions/report
+        uses: isubscribed/teraform-report-action@main
         env:
           TF_VAR_example: ${{ env.SOMETHING }}
         with:
